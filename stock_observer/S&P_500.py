@@ -10,7 +10,7 @@ def load_data():
     return components.drop('SEC filings', axis=1).set_index('Symbol')
 
 
-@st.cache(allow_output_mutation=False)
+@st.cache(allow_output_mutation=True)
 def load_quotes(asset):
     return yfinance.download(asset)
 
@@ -27,56 +27,61 @@ def main():
         return symbol + ' - ' + a.Security
     st.title('Stock Viewer Dashboard')
 
-    if st.sidebar.checkbox('View companies list', value=True):
+    if st.sidebar.checkbox('View companies list'):
         st.write(
             '''Here we have a list of companies that are in S&P and can be viewed over here''')
         st.dataframe(components[['Security',
                                  'GICS Sector',
-                                 'Date first added',
-                                 'Founded']])
+                                #  'Date first added',
+                                 'Founded']], width=2000)
 
     st.sidebar.subheader('Select asset')
     asset = st.sidebar.selectbox('Click below to select a new asset',
                                  components.index.sort_values(), index=3,
                                  format_func=label)
+    # st.text(components.loc[asset])
+
     st.write('''
              \n
              \n
              ''')
     st.write("\n The stock selected by you is **" +
              components.loc[asset].Security+"**"+"\n. The Plots for the stock you have selected :")
+    if st.sidebar.checkbox('View company info', True):
+        st.text('''Some information about the selected stock''')
+        st.text(components.loc[asset])
 
     data0 = load_quotes(asset)
     data = data0.copy().dropna()
     data.index.name = None
     # st.dataframe(data)
     section = st.sidebar.slider('Number of quotes', min_value=30,
-                                max_value=min([2000, data.shape[0]]),
-                                value=500,  step=10)
+                                max_value=min([100000, data.shape[0]]),
+                                value=round(data.shape[0] / 2),  step=100)
 
     data2 = data[-section:]['Adj Close'].to_frame('Adj Close')
-    sma = st.sidebar.checkbox('SMA', value=True)
+    sma = st.sidebar.checkbox('SMA')
     if sma:
         period = st.sidebar.slider('SMA period', min_value=5, max_value=500,
                                    value=20,  step=1)
         data[f'SMA {period}'] = data['Adj Close'].rolling(period).mean()
         data2[f'SMA {period}'] = data[f'SMA {period}'].reindex(data2.index)
 
-    sma2 = st.sidebar.checkbox('SMA2', value=True)
+    sma2 = st.sidebar.checkbox('SMA2')
     if sma2:
         period2 = st.sidebar.slider('SMA2 period', min_value=5, max_value=500,
                                     value=100,  step=1)
         data[f'SMA2 {period2}'] = data['Adj Close'].rolling(period2).mean()
         data2[f'SMA2 {period2}'] = data[f'SMA2 {period2}'].reindex(data2.index)
-
+        # st.table(data2 )
     st.subheader('Plot for the Adjusted Close Value ')
     st.line_chart(data2)
     # st.line_chart(data_2)
-    if st.sidebar.checkbox('View statistic', value=True):
+    if st.sidebar.checkbox('View statistic'):
         st.subheader('Statistics for the selected stock')
         st.table(data2.describe())
 
-    if st.sidebar.checkbox('View quotes', value=True):
+    if st.sidebar.checkbox('View quotes'):
         st.subheader(f'{asset} historical data')
         st.table(data2.head(10))
 
